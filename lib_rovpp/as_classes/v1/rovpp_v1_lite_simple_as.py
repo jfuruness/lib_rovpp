@@ -4,6 +4,11 @@ from lib_bgp_simulator import Announcement as Ann
 from lib_bgp_simulator import ROVSimpleAS
 from lib_bgp_simulator import EngineInput
 from lib_bgp_simulator import Relationships
+from lib_bgp_simulator import Prefixes 
+
+from ...engine_input import ROVPPNonRoutedSuperprefixHijack
+from ...engine_input import ROVPPNonRoutedSuperprefixPrefixHijack
+
 
 
 class ROVPPV1LiteSimpleAS(ROVSimpleAS):
@@ -46,7 +51,7 @@ class ROVPPV1LiteSimpleAS(ROVSimpleAS):
             reset_q=False,
             holes=holes,
             **kwargs)
-        self._add_blackholes(holes, from_rel)
+        self._add_blackholes(holes, from_rel, engine_input=engine_input)
 
         # It's possible that we had a previously valid prefix
         # Then later recieved a subprefix that was invalid
@@ -82,9 +87,11 @@ class ROVPPV1LiteSimpleAS(ROVSimpleAS):
                 holes[ann] = tuple(ann_holes)
         return holes
 
-    def _add_blackholes(self, holes, from_rel):
+    def _add_blackholes(self, holes, from_rel, engine_input=None):
         """Manipulates local RIB by adding blackholes and dropping invalid"""
 
+
+        assert engine_input
 
         blackholes_to_add = []
         # For each ann in local RIB:
@@ -117,6 +124,46 @@ class ROVPPV1LiteSimpleAS(ROVSimpleAS):
                                                        traceback_end=True)
 
                     blackholes_to_add.append(blackhole)
+
+        # NOTE: new to deal with non routed and superprefix blackholes
+
+        # TODO: aggregate all of these to avoid multiple loops
+
+        # Hardcoded to add blackholes for non routed and for superprefix
+        non_routed_bholes = list()
+        #for _, ann in self._local_rib.prefix_anns():
+        #    if ann.invalid_by_roa and not ann.roa_routed:
+        #        blackhole = self._copy_and_process(ann,
+        #                                           from_rel,
+        #                                           holes=ann.holes,
+        #                                           blackhole=True,
+        #                                           traceback_end=True)
+        #        non_routed_bholes.append(blackhole)
+
+        superprefix_bholes = list()
+        #if (isinstance(engine_input, ROVPPNonRoutedSuperprefixHijack)
+        #        or isinstance(engine_input, ROVPPNonRoutedSuperprefixPrefixHijack)):
+        #    for _, ann in self._local_rib.prefix_anns():
+        #        # This is a hijack. Blackhole I guess
+        #        if ann.prefix == Prefixes.SUPERPREFIX.value:
+        #            blackhole = self._copy_and_process(ann,
+        #                                               from_rel,
+        #                                               holes=ann.holes,
+        #                                               # Blackhole is for prefix
+        #                                               prefix=Prefixes.PREFIX.value,
+        #                                               blackhole=True,
+        #                                               traceback_end=True)
+        #            superprefix_bholes.append(blackhole)
+
+
+
+        # Remove current entry in the rib for anns about to be replaced
+        for same_prefix_blackhole in non_routed_bholes + superprefix_bholes:
+            self._local_rib.remove_ann(same_prefix_blackhole.prefix)
+               
+        blackholes_to_add.extend(non_routed_bholes)
+        blackholes_to_add.extend(superprefix_bholes)
+
         # Do this here to avoid changing dict size
         for blackhole in blackholes_to_add:
             # Add the blackhole
@@ -135,7 +182,7 @@ class ROVPPV1LiteSimpleAS(ROVSimpleAS):
         # if ann.invalid_by_roa and not ann.preventive:
         #     extra_kwargs["blackhole"] = True
         #     extra_kwargs["traceback_end"] = True
-        extra_kwargs["holes"] = holes[ann]
+        extra_kwargs["holes"] = holes
         return super(ROVPPV1LiteSimpleAS, self)._copy_and_process(
             ann, recv_relationship, **extra_kwargs)
 

@@ -26,7 +26,7 @@ from .engine_input import ROVPPNonRoutedSuperprefixPrefixHijack
 
 
 default_kwargs = {"percent_adoptions": [0, 5, 10, 20, 30, 40, 60, 80, 100],
-                  "num_trials": 1000}
+                  "num_trials": 1}
 
 non_lite_policies =(ROVPPV1SimpleAS,
                     ROVPPV2SimpleAS,
@@ -38,7 +38,7 @@ rov_non_lite_rovpp = (ROVAS,) + non_lite_policies
 
 
 def run_sim(graph, path):
-    sim = Simulator(parse_cpus=6)
+    sim = Simulator(parse_cpus=1)
 
     sim.run(graphs=[graph], graph_path=path, mp_method=MPMethod.MP)
 
@@ -48,11 +48,11 @@ def main():
     assert isinstance(input("Turn asserts off for speed?"), str)
 
     # Get's all of the general graphs for all types of attacks
-    #for atk in [ROVPPSubprefixHijack,
-    #            ROVPPNonRoutedSuperprefixHijack,
-    #            ROVPPSuperprefixPrefixHijack,
-    #            ROVPPPrefixHijack]:
-    for atk in [ROVPPNonRoutedPrefixHijack,
+    for atk in [ROVPPSubprefixHijack,
+                ROVPPNonRoutedSuperprefixHijack,
+                ROVPPSuperprefixPrefixHijack,
+                ROVPPPrefixHijack,
+                ROVPPNonRoutedPrefixHijack,
                 ROVPPNonRoutedSuperprefixPrefixHijack]:
         if atk == ROVPPSubprefixHijack:
             pols = rov_non_lite_rovpp + (ROVPPV3AS,)
